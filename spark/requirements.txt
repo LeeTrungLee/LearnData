@@ -1,0 +1,4 @@
+requests
+beautifulsoup4
+confluent-kafka
+psycopg2-binary
