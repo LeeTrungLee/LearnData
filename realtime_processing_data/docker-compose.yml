@@ -5,7 +5,6 @@ services:
     image: confluentinc/cp-zookeeper:7.5.0
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
 
@@ -18,11 +17,9 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://host.docker.internal:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-
 
   postgres:
     image: postgres:15
@@ -35,21 +32,37 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
-  # spark:
-  #   build:
-  #     context: ./spark
-  #   depends_on:
-  #     - kafka
-  #     - postgres
-  #   environment:
-  #     PYTHONUNBUFFERED: 1
-  #   volumes:
-  #     - ../src:/app/src
-  #     - ../.env:/app/.env
-  #     - ../config:/app/config
-  #   working_dir: /app
-  #   command: >
-  #     bash -c "python3 src/main.py"
+  spark-master:
+    image: bitnami/spark:3.4.1
+    environment:
+      - SPARK_MODE=master
+    ports:
+      - "7077:7077"
+      - "8080:8080"
+
+  spark-worker:
+    image: bitnami/spark:3.4.1
+    depends_on:
+      - spark-master
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+    ports:
+      - "8081:8081"
+
+  pipeline:
+    build: .
+    depends_on:
+      - kafka
+      - postgres
+      - spark-master
+    environment:
+      PYTHONUNBUFFERED: 1
+    volumes:
+      - .:/app
+    stdin_open: true
+    tty: true
+    command: ["/opt/bitnami/python/bin/python", "src/main.py"]
 
 volumes:
   pgdata:
