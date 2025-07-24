@@ -1,0 +1,9 @@
+postgres:
+  echo: false
+
+kafka:
+  group_id: realtime_consumer_group
+  auto_offset_reset: earliest
+
+spark:
+  batch_duration: 5  # seconds

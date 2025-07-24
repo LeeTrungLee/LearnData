@@ -1,0 +1,10 @@
+python-dotenv
+PyYAML
+pandas
+openpyxl
+requests
+beautifulsoup4
+lxml
+kafka-python
+psycopg2-binary
+SQLAlchemy
