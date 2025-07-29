@@ -33,7 +33,7 @@ KAFKA_CONFIG = {
 
 # Spark config
 SPARK_CONFIG = {
-    "app_name": os.getenv("SPARK_APP_NAME"),
-    "master": os.getenv("SPARK_MASTER"),
+    "app_name": os.getenv("SPARK_APP_NAME", "RealTimeProcessor"),
+    "master": os.getenv("SPARK_MASTER", "spark://spark:7077"),
     "batch_duration": config_yaml["spark"].get("batch_duration", 5),
 }

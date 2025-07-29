@@ -1,35 +1,47 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col
+from pyspark.sql.functions import from_json, col
+from pyspark.sql.types import StructType, StringType, TimestampType
+import logging
 
-def start_spark_stream():
+# Cấu hình logger
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("spark_stream")
 
-    # Khởi tạo SparkSession với Kafka connector
+def start_streaming():
     spark = SparkSession.builder \
-        .appName("KafkaToPostgres") \
-        .master("spark://spark-master:7077") \
-        .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.4.1") \
+        .appName("KafkaSparkConsumer") \
         .getOrCreate()
 
-
-    # Giảm bớt log rác
     spark.sparkContext.setLogLevel("WARN")
 
-    # Đọc dữ liệu từ Kafka topic
-    df_kafka_raw = spark.readStream \
+    # Schema của dữ liệu Kafka gửi
+    schema = StructType() \
+        .add("title", StringType()) \
+        .add("link", StringType()) \
+        .add("description", StringType()) \
+        .add("published_time", TimestampType())
+
+    # Đọc dữ liệu từ Kafka
+    df_raw = spark.readStream \
         .format("kafka") \
-        .option("kafka.bootstrap.servers", "broker:9092") \
-        .option("subscribe", "raw-data") \
+        .option("kafka.bootstrap.servers", "kafka:9092") \
+        .option("subscribe", "sensor_data") \
         .option("startingOffsets", "latest") \
         .load()
 
-    # Chuyển đổi dữ liệu từ binary sang chuỗi
-    df_parsed = df_kafka_raw.selectExpr("CAST(value AS STRING) as message")
+    # Parse JSON
+    df_parsed = df_raw.selectExpr("CAST(value AS STRING) as json_str") \
+        .select(from_json(col("json_str"), schema).alias("data")) \
+        .select("data.*")
 
-    # Ghi ra console
+    def log_batch(df, epoch_id):
+        count = df.count()
+        logger.info(f"📦 Batch {epoch_id} nhận được {count} bản ghi:")
+        df.show(truncate=False)
+
     query = df_parsed.writeStream \
+        .foreachBatch(log_batch) \
         .outputMode("append") \
-        .format("console") \
-        .option("truncate", False) \
         .start()
 
     query.awaitTermination()

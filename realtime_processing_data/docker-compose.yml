@@ -3,10 +3,10 @@ version: '3.8'
 services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
     ports:
       - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
@@ -21,48 +21,30 @@ services:
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
-  postgres:
-    image: postgres:15
-    environment:
-      POSTGRES_USER: root
-      POSTGRES_PASSWORD: 123456
-      POSTGRES_DB: data_process
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
-  spark-master:
-    image: bitnami/spark:3.4.1
-    environment:
-      - SPARK_MODE=master
-    ports:
-      - "7077:7077"
-      - "8080:8080"
-
-  spark-worker:
-    image: bitnami/spark:3.4.1
-    depends_on:
-      - spark-master
-    environment:
-      - SPARK_MODE=worker
-      - SPARK_MASTER_URL=spark://spark-master:7077
-    ports:
-      - "8081:8081"
+#  postgres:
+#    image: postgres:15
+#    ports:
+#      - "5432:5432"
+#    environment:
+#      POSTGRES_USER: root
+#      POSTGRES_PASSWORD: 123456
+#      POSTGRES_DB: data_process
+#    volumes:
+#      - pgdata:/var/lib/postgresql/data
 
   pipeline:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     depends_on:
       - kafka
-      - postgres
-      - spark-master
-    environment:
-      PYTHONUNBUFFERED: 1
+    restart: on-failure
     volumes:
       - .:/app
-    stdin_open: true
-    tty: true
-    command: ["/opt/bitnami/python/bin/python", "src/main.py"]
+    environment:
+      PYTHONUNBUFFERED: 1
+    command: [ "python", "src/main.py" ]
+
 
 volumes:
   pgdata:
